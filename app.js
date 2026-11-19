@@ -4,7 +4,14 @@ import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, 
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-storage.js";
 
 // Paste the SAME Firebase web config used in BHAROVA V3.
-const firebaseConfig={apiKey:"PASTE_API_KEY",authDomain:"PASTE_PROJECT.firebaseapp.com",projectId:"PASTE_PROJECT_ID",storageBucket:"PASTE_BUCKET",messagingSenderId:"PASTE_SENDER_ID",appId:"PASTE_APP_ID"};
+const firebaseConfig = {
+  apiKey: "AIzaSyD4b9fZe4nisrxr_fK6-3QxeVG1YexMk3k",
+  authDomain: "bharova-1caef.firebaseapp.com",
+  projectId: "bharova-1caef",
+  storageBucket: "bharova-1caef.firebasestorage.app",
+  messagingSenderId: "1036509077975",
+  appId: "1:1036509077975:web:77c8c03a642c93339feb92"
+};
 const $=s=>document.querySelector(s);let auth,db,storage,currentUser=null,unsubscribe=null,selectedFile=null;
 const ready=Object.values(firebaseConfig).every(v=>v&&!v.startsWith("PASTE_"));
 if(ready){const app=initializeApp(firebaseConfig);auth=getAuth(app);db=getFirestore(app);storage=getStorage(app);$("#status").textContent="Checking your account...";}
