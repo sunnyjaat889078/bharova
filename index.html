@@ -15,5 +15,30 @@
 </div></section>
 <aside class="right"><div class="card"><h3>BHAROVA V4</h3><p>Social features starter</p><ul><li>Real account sign-in</li><li>Cloud text posts</li><li>Photo uploads</li><li>Likes and comments</li><li>Follow connections</li></ul></div><div class="card safety"><b>Safety first</b><p>Only share content you have permission to publish. Report and moderation tools must be added before public launch.</p></div></aside>
 </main>
-<dialog id="modal"><div class="modal"><button id="close" class="close">×</button><h2 id="modalTitle">Edit profile</h2><form id="profileForm"><label>Display name<input id="editName" maxlength="40" required></label><label>Bio<textarea id="editBio" maxlength="160" placeholder="Tell the community about yourself"></textarea></label><button class="primary">Save profile</button></form><div id="commentForm" class="hidden"><label>Your comment<textarea id="commentText" maxlength="500" placeholder="Write a respectful comment"></textarea></label><button id="sendComment" class="primary">Add comment</button></div></div></dialog>
-<footer>BHAROVA · V4 starter · Made in India, for the world</footer><script type="module" src="app.js"></script></body></html>
+
+<dialog id="modal">
+  <div class="modal">
+    <button id="close" class="close">×</button>
+    <h2 id="modalTitle">Edit profile</h2>
+    <form id="profileForm">
+      <label>Display name
+        <input id="editName" maxlength="40" required>
+      </label>
+      <label>Profile photo URL
+        <input id="editPhotoUrl" type="url" placeholder="https://example.com/photo.jpg">
+      </label>
+      <label>Bio
+        <textarea id="editBio" maxlength="160" placeholder="Tell the community about yourself"></textarea>
+      </label>
+      <button class="primary">Save profile</button>
+    </form>
+    <div id="commentForm" class="hidden">
+      <label>Your comment
+        <textarea id="commentText" maxlength="500" placeholder="Write a respectful comment"></textarea>
+      </label>
+      <button id="sendComment" class="primary">Add comment</button>
+    </div>
+  </div>
+</dialog>
+  
+  <footer>BHAROVA · V4 starter · Made in India, for the world</footer><script type="module" src="app.js"></script></body></html>
