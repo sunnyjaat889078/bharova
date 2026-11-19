@@ -124,7 +124,10 @@ $("#photo").onchange = () => {
 
   preview.src = URL.createObjectURL(selectedFile);
   preview.classList.remove("hidden");
-  $("#fileName").textContent = selectedFile.name;
+  $("#fileName").textContent = "Selected: " + selectedFile.name;
+$("#fileName").style.display = "inline-block";
+$("#fileName").style.color = "#1d4ed8";
+$("#fileName").style.fontWeight = "bold";
 };
 $("#publish").onclick=async()=>{const text=$("#postText").value.trim();if(!text&&!selectedFile){alert("Write a post or select a photo.");return;}if(text.length>1500){alert("Post is too long.");return;}const btn=$("#publish");btn.disabled=true;try{let mediaUrl="",mediaType="";if(selectedFile){if(!selectedFile.type.startsWith("image/"))throw new Error("This version supports image uploads only.");if(selectedFile.size>5*1024*1024)throw new Error("Choose an image smaller than 5 MB.");const path=`postMedia/${currentUser.uid}/${Date.now()}_${selectedFile.name.replace(/[^a-zA-Z0-9._-]/g,"_")}`;const fileRef=ref(storage,path);await uploadBytes(fileRef,selectedFile,{contentType:selectedFile.type});mediaUrl=await getDownloadURL(fileRef);mediaType=selectedFile.type;}await addDoc(collection(db,"posts"),{uid:currentUser.uid,displayName:currentUser.displayName||"BHAROVA member",text,mediaUrl,mediaType,createdAt:serverTimestamp(),likeCount:0,commentCount:0});await updateDoc(doc(db,"users",currentUser.uid),{postCount:increment(1)});$("#postText").value="";$("#photo").value="";$("#fileName").textContent="";selectedFile=null;loadProfile();}catch(err){alert(err.message)}finally{btn.disabled=false}};
 function listenFeed(){if(unsubscribe)unsubscribe();const q=query(collection(db,"posts"),orderBy("createdAt","desc"),limit(40));unsubscribe=onSnapshot(q,snap=>{const feed=$("#feed");feed.innerHTML="";if(snap.empty){feed.innerHTML='<div class="card placeholder">No posts yet. Be the first to share something!</div>';return;}snap.forEach(d=>feed.append(renderPost(d.id,d.data())));},err=>{msg("Feed error: "+err.message)});}
