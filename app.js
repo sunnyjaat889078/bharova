@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, updateDoc, increment, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-storage.js";
 
@@ -20,7 +20,15 @@ function msg(t){$("#status").textContent=t}
 function tab(which){$("#signup").classList.toggle("hidden",which!=="signup");$("#login").classList.toggle("hidden",which!=="login");$("#signupTab").classList.toggle("active",which==="signup");$("#loginTab").classList.toggle("active",which==="login")}
 $("#signupTab").onclick=()=>tab("signup");$("#loginTab").onclick=()=>tab("login");
 $("#signup").onsubmit=e=>{e.preventDefault();msg("Use the BHAROVA V3 account page to create an account, then return here to use V4.")};
-$("#login").onsubmit=e=>{e.preventDefault();msg("Use the BHAROVA V3 account page to log in, then return here to use V4.")};
+$("#login").onsubmit=async e=>{
+ e.preventDefault();
+ try{
+  msg("Signing in...");
+  await signInWithEmailAndPassword(auth,$("#loginEmail").value.trim(),$("#loginPassword").value);
+ }catch(err){
+  msg("Login failed: "+(err.code||err.message));
+ }
+};
 $("#logout").onclick=()=>signOut(auth);
 onAuthStateChanged(auth,user=>{
  currentUser=user;
