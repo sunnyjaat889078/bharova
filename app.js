@@ -128,8 +128,92 @@ $("#photo").onchange = () => {
 $("#fileName").style.display = "inline-block";
 $("#fileName").style.color = "#1d4ed8";
 $("#fileName").style.fontWeight = "bold";
+}
+
+async function compressImage(file) {
+  const bitmap = await createImageBitmap(file);
+  let scale = Math.min(1, 1280 / Math.max(bitmap.width, bitmap.height));
+
+  for (let i = 0; i < 6; i++) {
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+    const data = canvas.toDataURL("image/jpeg", 0.7 - i * 0.06);
+
+    if (data.length <= 600000) {
+      bitmap.close();
+      return data;
+    }
+
+    scale *= 0.8;
+  }
+
+  bitmap.close();
+  throw new Error("Photo is too large. Choose another photo.");
+}
+
+$("#publish").onclick = async () => {
+  const text = $("#postText").value.trim();
+
+  if (!text && !selectedFile) {
+    alert("Write a post or select a photo.");
+    return;
+  }
+
+  if (text.length > 1500) {
+    alert("Post is too long.");
+    return;
+  }
+
+  const btn = $("#publish");
+  btn.disabled = true;
+
+  try {
+    let mediaUrl = "";
+    let mediaType = "";
+
+    if (selectedFile) {
+      if (!selectedFile.type.startsWith("image/")) {
+        throw new Error("Please select an image.");
+      }
+
+      mediaUrl = await compressImage(selectedFile);
+      mediaType = "image/jpeg";
+    }
+
+    await addDoc(collection(db, "posts"), {
+      uid: currentUser.uid,
+      displayName: currentUser.displayName || "BHAROVA member",
+      text,
+      mediaUrl,
+      mediaType,
+      createdAt: serverTimestamp(),
+      likeCount: 0,
+      commentCount: 0
+    });
+
+    await updateDoc(doc(db, "users", currentUser.uid), {
+      postCount: increment(1)
+    });
+
+    $("#postText").value = "";
+    $("#photo").value = "";
+    $("#fileName").textContent = "";
+    $("#photoPreview").classList.add("hidden");
+    $("#photoPreview").removeAttribute("src");
+    selectedFile = null;
+
+    await loadProfile();
+  } catch (err) {
+    alert("Post failed: " + err.message);
+  } finally {
+    btn.disabled = false;
+  }
 };
-$("#publish").onclick=async()=>{const text=$("#postText").value.trim();if(!text&&!selectedFile){alert("Write a post or select a photo.");return;}if(text.length>1500){alert("Post is too long.");return;}const btn=$("#publish");btn.disabled=true;try{let mediaUrl="",mediaType="";if(selectedFile){if(!selectedFile.type.startsWith("image/"))throw new Error("This version supports image uploads only.");if(selectedFile.size>5*1024*1024)throw new Error("Choose an image smaller than 5 MB.");const path=`postMedia/${currentUser.uid}/${Date.now()}_${selectedFile.name.replace(/[^a-zA-Z0-9._-]/g,"_")}`;const fileRef=ref(storage,path);await uploadBytes(fileRef,selectedFile,{contentType:selectedFile.type});mediaUrl=await getDownloadURL(fileRef);mediaType=selectedFile.type;}await addDoc(collection(db,"posts"),{uid:currentUser.uid,displayName:currentUser.displayName||"BHAROVA member",text,mediaUrl,mediaType,createdAt:serverTimestamp(),likeCount:0,commentCount:0});await updateDoc(doc(db,"users",currentUser.uid),{postCount:increment(1)});$("#postText").value="";$("#photo").value="";$("#fileName").textContent="";selectedFile=null;loadProfile();}catch(err){alert(err.message)}finally{btn.disabled=false}};
+
 function listenFeed(){if(unsubscribe)unsubscribe();const q=query(collection(db,"posts"),orderBy("createdAt","desc"),limit(40));unsubscribe=onSnapshot(q,snap=>{const feed=$("#feed");feed.innerHTML="";if(snap.empty){feed.innerHTML='<div class="card placeholder">No posts yet. Be the first to share something!</div>';return;}snap.forEach(d=>feed.append(renderPost(d.id,d.data())));},err=>{msg("Feed error: "+err.message)});}
 function renderPost(id,p){const article=document.createElement("article");article.className="card";const head=document.createElement("div");head.className="post-head";const avatar=document.createElement("span");avatar.className="avatar";avatar.textContent=(p.displayName||"B").charAt(0).toUpperCase();const meta=document.createElement("div"),name=document.createElement("b"),small=document.createElement("small");name.textContent=p.displayName||"BHAROVA member";small.textContent=p.createdAt?.toDate?p.createdAt.toDate().toLocaleString():"Just now";meta.append(name,small);head.append(avatar,meta);article.append(head);if(p.text){const para=document.createElement("p");para.className="post-copy";para.textContent=p.text;article.append(para);}if(p.mediaUrl){const img=document.createElement("img");img.className="post-media";img.src=p.mediaUrl;img.alt="Community post image";article.append(img);}const actions=document.createElement("div");actions.className="post-actions";const like=document.createElement("button");like.textContent=`♡ Like (${p.likeCount||0})`;like.onclick=()=>likePost(id);const comment=document.createElement("button");comment.textContent=`Comment (${p.commentCount||0})`;comment.onclick=()=>openComments(id);const follow=document.createElement("button");follow.textContent=p.uid===currentUser.uid?"Your post":"＋ Follow";follow.disabled=p.uid===currentUser.uid;follow.onclick=()=>followUser(p.uid);actions.append(like,comment,follow);article.append(actions);return article;}
 async function likePost(postId){try{const likeRef=doc(db,"posts",postId,"likes",currentUser.uid);await runTransaction(db,async tx=>{const snap=await tx.get(likeRef),postRef=doc(db,"posts",postId);if(snap.exists()){tx.delete(likeRef);tx.update(postRef,{likeCount:increment(-1)});}else{tx.set(likeRef,{uid:currentUser.uid,createdAt:serverTimestamp()});tx.update(postRef,{likeCount:increment(1)});}});}catch(e){alert(e.message)}}
