@@ -1,0 +1,64 @@
+FIRESTORE RULES — REVIEW AND TEST BEFORE PUBLISHING
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create: if owner(uid);
+      allow update: if owner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['displayName','bio','postCount','followerCount','followingCount']);
+      allow delete: if false;
+
+      match /followers/{followerUid} {
+        allow read: if signedIn();
+        allow create: if owner(followerUid) && followerUid != uid;
+        allow delete: if owner(followerUid);
+      }
+      match /following/{targetUid} {
+        allow read: if signedIn();
+        allow create: if owner(uid) && targetUid != uid;
+        allow delete: if owner(uid);
+      }
+    }
+
+    match /posts/{postId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid','displayName','text','mediaUrl','mediaType','createdAt','likeCount','commentCount'])
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 1500
+        && request.resource.data.likeCount == 0
+        && request.resource.data.commentCount == 0;
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likeCount','commentCount'])
+        && request.resource.data.likeCount is int
+        && request.resource.data.commentCount is int;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+
+      match /likes/{uid} {
+        allow read: if signedIn();
+        allow create, delete: if owner(uid);
+        allow update: if false;
+      }
+      match /comments/{commentId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 500;
+        allow update, delete: if signedIn() && resource.data.uid == request.auth.uid;
+      }
+    }
+  }
+}
+
+WARNING: These are illustrative starter rules. The current client-side count updates and
+profile counters need server-side validation/Cloud Functions before production. Test every
+rule with Firebase Emulator and do not treat this as a complete security audit.
