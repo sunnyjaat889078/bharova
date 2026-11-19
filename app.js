@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, updateDoc, increment, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, updateDoc, increment, runTransaction, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-storage.js";
 
 // Paste the SAME Firebase web config used in BHAROVA V3.
@@ -215,7 +215,110 @@ $("#publish").onclick = async () => {
 };
 
 function listenFeed(){if(unsubscribe)unsubscribe();const q=query(collection(db,"posts"),orderBy("createdAt","desc"),limit(40));unsubscribe=onSnapshot(q,snap=>{const feed=$("#feed");feed.innerHTML="";if(snap.empty){feed.innerHTML='<div class="card placeholder">No posts yet. Be the first to share something!</div>';return;}snap.forEach(d=>feed.append(renderPost(d.id,d.data())));},err=>{msg("Feed error: "+err.message)});}
-function renderPost(id,p){const article=document.createElement("article");article.className="card";const head=document.createElement("div");head.className="post-head";const avatar=document.createElement("span");avatar.className="avatar";avatar.textContent=(p.displayName||"B").charAt(0).toUpperCase();const meta=document.createElement("div"),name=document.createElement("b"),small=document.createElement("small");name.textContent=p.displayName||"BHAROVA member";small.textContent=p.createdAt?.toDate?p.createdAt.toDate().toLocaleString():"Just now";meta.append(name,small);head.append(avatar,meta);article.append(head);if(p.text){const para=document.createElement("p");para.className="post-copy";para.textContent=p.text;article.append(para);}if(p.mediaUrl){const img=document.createElement("img");img.className="post-media";img.src=p.mediaUrl;img.alt="Community post image";article.append(img);}const actions=document.createElement("div");actions.className="post-actions";const like=document.createElement("button");like.textContent=`♡ Like (${p.likeCount||0})`;like.onclick=()=>likePost(id);const comment=document.createElement("button");comment.textContent=`Comment (${p.commentCount||0})`;comment.onclick=()=>openComments(id);const follow=document.createElement("button");follow.textContent=p.uid===currentUser.uid?"Your post":"＋ Follow";follow.disabled=p.uid===currentUser.uid;follow.onclick=()=>followUser(p.uid);actions.append(like,comment,follow);article.append(actions);return article;}
+function renderPost(id, p) {
+  const article = document.createElement("article");
+  article.className = "card";
+
+  const head = document.createElement("div");
+  head.className = "post-head";
+
+  const avatar = document.createElement("span");
+  avatar.className = "avatar";
+  avatar.textContent = (p.displayName || "B").charAt(0).toUpperCase();
+
+  const meta = document.createElement("div");
+  const name = document.createElement("b");
+  const small = document.createElement("small");
+
+  name.textContent = p.displayName || "BHAROVA member";
+  small.textContent = p.createdAt?.toDate
+    ? p.createdAt.toDate().toLocaleString()
+    : "Just now";
+
+  meta.append(name, small);
+  head.append(avatar, meta);
+  article.append(head);
+
+  if (p.text) {
+    const para = document.createElement("p");
+    para.className = "post-copy";
+    para.textContent = p.text;
+    article.append(para);
+  }
+
+  if (p.mediaUrl) {
+    const img = document.createElement("img");
+    img.className = "post-media";
+    img.src = p.mediaUrl;
+    img.alt = "Community post image";
+    article.append(img);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "post-actions";
+
+  const like = document.createElement("button");
+  like.textContent = `♡ Like (${p.likeCount || 0})`;
+  like.onclick = () => likePost(id);
+
+  const comment = document.createElement("button");
+  comment.textContent = `Comment (${p.commentCount || 0})`;
+  comment.onclick = () => openComments(id);
+
+  const follow = document.createElement("button");
+  follow.textContent = p.uid === currentUser.uid ? "Your post" : "＋ Follow";
+  follow.disabled = p.uid === currentUser.uid;
+  follow.onclick = () => followUser(p.uid);
+
+  actions.append(like, comment, follow);
+
+  if (p.uid === currentUser.uid) {
+    const del = document.createElement("button");
+    del.textContent = "Delete";
+    del.onclick = () => deletePost(id);
+    actions.append(del);
+  }
+
+  article.append(actions);
+  return article;
+}
+async function deletePost(postId) {
+  if (!confirm("Are you sure you want to delete this post?")) {
+    return;
+  }
+
+  try {
+    const postRef = doc(db, "posts", postId);
+    const userRef = doc(db, "users", currentUser.uid);
+
+    await runTransaction(db, async (tx) => {
+      const postSnap = await tx.get(postRef);
+      const userSnap = await tx.get(userRef);
+
+      if (!postSnap.exists()) {
+        throw new Error("Post not found.");
+      }
+
+      if (postSnap.data().uid !== currentUser.uid) {
+        throw new Error("You cannot delete another user's post.");
+      }
+
+      tx.delete(postRef);
+
+      if (userSnap.exists()) {
+        const count = userSnap.data().postCount || 0;
+        tx.update(userRef, {
+          postCount: Math.max(0, count - 1)
+        });
+      }
+    });
+
+    await loadProfile();
+    alert("Post deleted successfully!");
+  } catch (error) {
+    alert("Delete failed: " + error.message);
+  }
+}
 async function likePost(postId){try{const likeRef=doc(db,"posts",postId,"likes",currentUser.uid);await runTransaction(db,async tx=>{const snap=await tx.get(likeRef),postRef=doc(db,"posts",postId);if(snap.exists()){tx.delete(likeRef);tx.update(postRef,{likeCount:increment(-1)});}else{tx.set(likeRef,{uid:currentUser.uid,createdAt:serverTimestamp()});tx.update(postRef,{likeCount:increment(1)});}});}catch(e){alert(e.message)}}
 async function followUser(targetUid){if(!targetUid||targetUid===currentUser.uid)return;try{const followRef=doc(db,"users",targetUid,"followers",currentUser.uid),followingRef=doc(db,"users",currentUser.uid,"following",targetUid);const existing=await getDoc(followRef);if(existing.exists()){alert("Already following, or unfollow support will be added in the next update.");return;}await setDoc(followRef,{uid:currentUser.uid,createdAt:serverTimestamp()});await setDoc(followingRef,{uid:targetUid,createdAt:serverTimestamp()});alert("Follow request saved.");}catch(e){alert("Follow could not be completed: "+e.message)}}
 async function openComments(postId){$("#modalTitle").textContent="Comments";$("#profileForm").classList.add("hidden");$("#commentForm").classList.remove("hidden");$("#commentText").value="";$("#modal").dataset.postId=postId;$("#modal").showModal();const existing=$("#commentList");if(existing)existing.remove();const list=document.createElement("div");list.id="commentList";list.className="comments";$("#commentForm").prepend(list);try{const {getDocs}=await import("https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js");const q=query(collection(db,"posts",postId,"comments"),orderBy("createdAt","asc"),limit(30));const snap=await getDocs(q);snap.forEach(d=>{const line=document.createElement("div");line.className="comment-line";const b=document.createElement("b");b.textContent=d.data().displayName||"Member";line.append(b,document.createTextNode(d.data().text));list.append(line);});}catch(e){list.textContent="Comments could not be loaded.";}}
