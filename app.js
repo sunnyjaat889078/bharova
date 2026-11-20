@@ -226,12 +226,36 @@ $("#publish").onclick = async () => {
   }
 };
 
-function listenFeed(){if(unsubscribe)unsubscribe();const q=query(collection(db,"posts"),orderBy("createdAt","desc"),limit(40));unsubscribe=onSnapshot(q,snap=>{const feed=$("#feed");feed.innerHTML="";if(snap.empty){feed.innerHTML='<div class="card placeholder">No posts yet. Be the first to share something!</div>';return;}snap.forEach(d=>{
-  const post = d.data();
-  if (!blockedUsers.has(post.uid)) {
-    feed.append(renderPost(d.id, post));
-  }
-});},err=>{msg("Feed error: "+err.message)});}
+async function listenFeed() {
+  if (unsubscribe) unsubscribe();
+
+  blockedUsers.clear();
+
+  const blockedSnap = await getDocs(
+    collection(db, "users", currentUser.uid, "blocked")
+  );
+
+  blockedSnap.forEach(doc => blockedUsers.add(doc.id));
+
+  const q = query(
+    collection(db, "posts"),
+    orderBy("createdAt", "desc"),
+    limit(40)
+  );
+
+  unsubscribe = onSnapshot(q, snap => {
+    const feed = $("#feed");
+    feed.innerHTML = "";
+
+    snap.forEach(d => {
+      const post = d.data();
+
+      if (!blockedUsers.has(post.uid)) {
+        feed.append(renderPost(d.id, post));
+      }
+    });
+  }, err => msg("Feed error: " + err.message));
+}
 function renderPost(id, p) {
   const article = document.createElement("article");
   article.className = "card";
