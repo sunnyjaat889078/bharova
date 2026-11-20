@@ -176,12 +176,24 @@ $("#publish").onclick = async () => {
     let mediaType = "";
 
     if (selectedFile) {
-      if (!selectedFile.type.startsWith("image/")) {
-        throw new Error("Please select an image.");
-      }
+  if (!selectedFile.type.startsWith("image/")) {
+    throw new Error("Please select an image.");
+  }
 
-      mediaUrl = await compressImage(selectedFile);
-      mediaType = "image/jpeg";
+  const compressedDataUrl = await compressImage(selectedFile);
+  const imageBlob = await (await fetch(compressedDataUrl)).blob();
+
+  const imageRef = ref(
+    storage,
+    `postMedia/${currentUser.uid}/${Date.now()}.jpg`
+  );
+
+  await uploadBytes(imageRef, imageBlob, {
+    contentType: "image/jpeg"
+  });
+
+  mediaUrl = await getDownloadURL(imageRef);
+  mediaType = "image/jpeg";
     }
 
     await addDoc(collection(db, "posts"), {
