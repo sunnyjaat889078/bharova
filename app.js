@@ -12,7 +12,7 @@ const firebaseConfig = {
   messagingSenderId: "1036509077975",
   appId: "1:1036509077975:web:77c8c03a642c93339feb92"
 };
-const $=s=>document.querySelector(s);let auth,db,storage,currentUser=null,unsubscribe=null,selectedFile=null;
+const $=s=>document.querySelector(s);let auth,db,storage,currentUser=null,unsubscribe=null,selectedFile=null, blockedUserIds=new Set();
 const ready=Object.values(firebaseConfig).every(v=>v&&!v.startsWith("PASTE_"));
 if(ready){const app=initializeApp(firebaseConfig);auth=getAuth(app);db=getFirestore(app);storage=getStorage(app);$("#status").textContent="Checking your account...";}
 else $("#status").textContent="Firebase setup required. Follow FIREBASE_SETUP.txt and add your config to app.js.";
