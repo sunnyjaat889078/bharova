@@ -283,7 +283,43 @@ function renderPost(id, p) {
   follow.onclick = () => followUser(p.uid);
 
   actions.append(like, comment, follow);
+if (p.uid !== currentUser.uid) {
+  const block = document.createElement("button");
+  block.textContent = "Block / Unblock";
 
+  block.onclick = async () => {
+    const blockedRef = doc(
+      db,
+      "users",
+      currentUser.uid,
+      "blocked",
+      p.uid
+    );
+
+    try {
+      const snap = await getDoc(blockedRef);
+
+      if (snap.exists()) {
+        await deleteDoc(blockedRef);
+        blockedUsers.delete(p.uid);
+        alert("Member unblocked.");
+      } else {
+        await setDoc(blockedRef, {
+          uid: p.uid,
+          createdAt: serverTimestamp()
+        });
+        blockedUsers.add(p.uid);
+        alert("Member blocked.");
+      }
+
+      listenFeed();
+    } catch (error) {
+      alert("Action failed: " + error.message);
+    }
+  };
+
+  actions.append(block);
+}
   if (p.uid === currentUser.uid) {
     const del = document.createElement("button");
     del.textContent = "Delete";
