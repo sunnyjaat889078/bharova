@@ -320,7 +320,45 @@ async function deletePost(postId) {
   }
 }
 async function likePost(postId){try{const likeRef=doc(db,"posts",postId,"likes",currentUser.uid);await runTransaction(db,async tx=>{const snap=await tx.get(likeRef),postRef=doc(db,"posts",postId);if(snap.exists()){tx.delete(likeRef);tx.update(postRef,{likeCount:increment(-1)});}else{tx.set(likeRef,{uid:currentUser.uid,createdAt:serverTimestamp()});tx.update(postRef,{likeCount:increment(1)});}});}catch(e){alert(e.message)}}
-async function followUser(targetUid){if(!targetUid||targetUid===currentUser.uid)return;try{const followRef=doc(db,"users",targetUid,"followers",currentUser.uid),followingRef=doc(db,"users",currentUser.uid,"following",targetUid);const existing=await getDoc(followRef);if(existing.exists()){alert("Already following, or unfollow support will be added in the next update.");return;}await setDoc(followRef,{uid:currentUser.uid,createdAt:serverTimestamp()});await setDoc(followingRef,{uid:targetUid,createdAt:serverTimestamp()});alert("Follow request saved.");}catch(e){alert("Follow could not be completed: "+e.message)}}
+
+async function followUser(targetUid) {
+  if (!targetUid || targetUid === currentUser.uid) return;
+
+  const followerRef = doc(db, "users", targetUid, "followers", currentUser.uid);
+  const followingRef = doc(db, "users", currentUser.uid, "following", targetUid);
+
+  try {
+    let nowFollowing = false;
+
+    await runTransaction(db, async (tx) => {
+      const followerSnap = await tx.get(followerRef);
+      const followingSnap = await tx.get(followingRef);
+
+      if (followerSnap.exists() || followingSnap.exists()) {
+        if (followerSnap.exists()) tx.delete(followerRef);
+        if (followingSnap.exists()) tx.delete(followingRef);
+        nowFollowing = false;
+      } else {
+        tx.set(followerRef, {
+          uid: currentUser.uid,
+          createdAt: serverTimestamp()
+        });
+        tx.set(followingRef, {
+          uid: targetUid,
+          createdAt: serverTimestamp()
+        });
+        nowFollowing = true;
+      }
+    });
+
+    alert(nowFollowing ? "You are now following this member." : "You unfollowed this member.");
+    listenFeed();
+
+  } catch (e) {
+    alert("Follow failed: " + e.message);
+  }
+}
+
 async function openComments(postId){$("#modalTitle").textContent="Comments";$("#profileForm").classList.add("hidden");$("#commentForm").classList.remove("hidden");$("#commentText").value="";$("#modal").dataset.postId=postId;$("#modal").showModal();const existing=$("#commentList");if(existing)existing.remove();const list=document.createElement("div");list.id="commentList";list.className="comments";$("#commentForm").prepend(list);try{const {getDocs}=await import("https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js");const q=query(collection(db,"posts",postId,"comments"),orderBy("createdAt","asc"),limit(30));const snap=await getDocs(q);snap.forEach(d=>{const line=document.createElement("div");line.className="comment-line";const b=document.createElement("b");b.textContent=d.data().displayName||"Member";line.append(b,document.createTextNode(d.data().text));list.append(line);});}catch(e){list.textContent="Comments could not be loaded.";}}
 $("#sendComment").onclick=async()=>{const text=$("#commentText").value.trim(),postId=$("#modal").dataset.postId;if(!text)return;if(text.length>500){alert("Comment is too long.");return;}try{await addDoc(collection(db,"posts",postId,"comments"),{uid:currentUser.uid,displayName:currentUser.displayName||"Member",text,createdAt:serverTimestamp()});await updateDoc(doc(db,"posts",postId),{commentCount:increment(1)});$("#modal").close();}catch(e){alert(e.message)}};
 $("#close").onclick=()=>$("#modal").close();
